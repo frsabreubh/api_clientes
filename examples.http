@@ -1,0 +1,193 @@
+# =====================================================================
+# Exemplos de uso da API de Clientes
+# Use com a extensão REST Client (VS Code) ou com curl.
+# Substitua os valores de UUID pelos retornados nas respostas.
+# =====================================================================
+
+@base = http://localhost:8080
+
+# ─────────────────────────────────────────────
+# HEALTH CHECK
+# ─────────────────────────────────────────────
+
+### Health check
+GET {{base}}/health
+
+# ─────────────────────────────────────────────
+# CLIENTES — fluxo feliz
+# ─────────────────────────────────────────────
+
+### 1. Criar cliente
+# @name createCustomer
+POST {{base}}/customers
+Content-Type: application/json
+
+{
+  "name": "João Silva",
+  "email": "joao@example.com",
+  "password": "senha@123"
+}
+
+### 2. Login com credenciais corretas
+POST {{base}}/customers/login
+Content-Type: application/json
+
+{
+  "email": "joao@example.com",
+  "password": "senha@123"
+}
+
+### 3. Buscar cliente pelo ID  (substitua o UUID)
+GET {{base}}/customers/00000000-0000-0000-0000-000000000000
+
+# ─────────────────────────────────────────────
+# CLIENTES — fluxos de erro
+# ─────────────────────────────────────────────
+
+### ERRO 400 — campos obrigatórios ausentes
+POST {{base}}/customers
+Content-Type: application/json
+
+{
+  "name": "",
+  "email": "",
+  "password": ""
+}
+
+### ERRO 409 — e-mail duplicado
+POST {{base}}/customers
+Content-Type: application/json
+
+{
+  "name": "Outro Silva",
+  "email": "joao@example.com",
+  "password": "outrasenha"
+}
+
+### ERRO 401 — senha errada
+POST {{base}}/customers/login
+Content-Type: application/json
+
+{
+  "email": "joao@example.com",
+  "password": "senhaerrada"
+}
+
+### ERRO 404 — cliente inexistente
+GET {{base}}/customers/00000000-0000-0000-0000-000000000001
+
+# ─────────────────────────────────────────────
+# PRODUTOS — fluxo feliz
+# ─────────────────────────────────────────────
+
+### 4. Criar produto com estoque
+# @name createProduct
+POST {{base}}/products
+Content-Type: application/json
+
+{
+  "name": "Notebook Dell Inspiron",
+  "description": "Intel Core i7, 16 GB RAM, 512 GB SSD",
+  "price": 4599.90,
+  "stock_quantity": 10
+}
+
+### 5. Listar todos os produtos
+GET {{base}}/products
+
+### 6. Buscar produto pelo ID  (substitua o UUID)
+GET {{base}}/products/00000000-0000-0000-0000-000000000000
+
+### 7. Atualizar produto
+PUT {{base}}/products/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "name": "Notebook Dell Inspiron (atualizado)",
+  "description": "Intel Core i7, 32 GB RAM, 1 TB SSD",
+  "price": 5299.90,
+  "stock_quantity": 8
+}
+
+# ─────────────────────────────────────────────
+# PRODUTOS — fluxos de erro
+# ─────────────────────────────────────────────
+
+### ERRO 400 — preço negativo
+POST {{base}}/products
+Content-Type: application/json
+
+{
+  "name": "Produto Inválido",
+  "price": -10,
+  "stock_quantity": 5
+}
+
+### ERRO 404 — produto inexistente
+GET {{base}}/products/00000000-0000-0000-0000-000000000002
+
+# ─────────────────────────────────────────────
+# PEDIDOS — fluxo feliz
+# ─────────────────────────────────────────────
+
+### 8. Criar pedido (substitua os UUIDs)
+# O pedido é criado dentro de uma transação:
+#   - verifica e decrementa o estoque atomicamente
+#   - grava order + order_items em um único commit
+# @name createOrder
+POST {{base}}/orders
+Content-Type: application/json
+
+{
+  "customer_id": "CUSTOMER_UUID",
+  "items": [
+    { "product_id": "PRODUCT_UUID", "quantity": 2 }
+  ]
+}
+
+### 9. Buscar pedido pelo ID
+GET {{base}}/orders/00000000-0000-0000-0000-000000000000
+
+### 10. Listar pedidos — primeira página
+GET {{base}}/orders?limit=5&offset=0
+
+### 11. Listar pedidos — segunda página
+GET {{base}}/orders?limit=5&offset=5
+
+# ─────────────────────────────────────────────
+# PEDIDOS — fluxos de erro
+# ─────────────────────────────────────────────
+
+### ERRO 400 — sem itens
+POST {{base}}/orders
+Content-Type: application/json
+
+{
+  "customer_id": "CUSTOMER_UUID",
+  "items": []
+}
+
+### ERRO 404 — cliente inexistente
+POST {{base}}/orders
+Content-Type: application/json
+
+{
+  "customer_id": "00000000-0000-0000-0000-000000000099",
+  "items": [
+    { "product_id": "PRODUCT_UUID", "quantity": 1 }
+  ]
+}
+
+### ERRO 422 — estoque insuficiente
+POST {{base}}/orders
+Content-Type: application/json
+
+{
+  "customer_id": "CUSTOMER_UUID",
+  "items": [
+    { "product_id": "PRODUCT_UUID", "quantity": 99999 }
+  ]
+}
+
+### ERRO 400 — limit inválido
+GET {{base}}/orders?limit=-1&offset=0
